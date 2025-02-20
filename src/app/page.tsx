@@ -28,6 +28,7 @@ import { LegacyAccount, LegacyAccountSource } from "@/lib/types";
 interface DecryptedAccount {
   id: string;
   phrase: string;
+  keyPair?: string;
   type: string;
 }
 
@@ -202,7 +203,9 @@ export default function Home() {
                                 <div className="grid gap-1">
                                   <Label className="text-xs">Private Key</Label>
                                   <code className="rounded bg-muted-foreground/20 px-2 py-1 text-sm break-all">
-                                    {account.keyPair}
+                                    {account.keyPair
+                                      ? account.keyPair
+                                      : "No keypair found"}
                                   </code>
                                 </div>
                                 <div className="grid gap-1">
