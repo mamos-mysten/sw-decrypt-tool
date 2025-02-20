@@ -12,6 +12,7 @@
     "@metamask/browser-passworder": "^6.0.0",
     "@mysten/sui": "^1.21.2",
     "@noble/hashes": "^1.7.1",
+    "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-label": "^2.1.2",
     "@radix-ui/react-slot": "^1.1.2",
     "@radix-ui/react-tabs": "^1.1.3",

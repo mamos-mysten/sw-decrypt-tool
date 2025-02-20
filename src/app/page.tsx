@@ -1,5 +1,7 @@
 "use client";
 
+import type React from "react";
+
 import { useState } from "react";
 import {
   Card,
@@ -13,12 +15,26 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { mnemonicSeedHexToPhrase } from "@/lib/bip39";
+
+import { LegacyAccount, LegacyAccountSource } from "@/lib/types";
+
+interface DecryptedAccount {
+  id: string;
+  phrase: string;
+  type: string;
+}
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
-  const [jsonData, setJsonData] = useState<any>(null);
+  const [jsonData, setJsonData] = useState<DecryptedAccount[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isDecrypting, setIsDecrypting] = useState(false);
 
@@ -40,21 +56,62 @@ export default function Home() {
 
       // Read the file
       const fileContent = await file.text();
-      const parsedJson = JSON.parse(fileContent);
+      const parsedJson = JSON.parse(fileContent) as {
+        accountSources: LegacyAccountSource[];
+        accounts: LegacyAccount[];
+      };
 
       // Import browser-passworder dynamically to avoid SSR issues
       const browserPassworder = await import("@metamask/browser-passworder");
 
-      // Decrypt the data
-      // Note: This is a simplified example. You'll need to handle each encrypted field
-      const decryptedData = (await browserPassworder.decrypt(
-        password,
-        parsedJson.accountSources[0].encryptedData
-      )) as { mnemonicSeedHex: string; entropyHex: string };
+      const allAccounts = [
+        ...parsedJson.accountSources,
+        ...parsedJson.accounts.filter((account) => account.type === "imported"),
+      ];
+      // Decrypt all account sources
+      const decryptedAccounts = await Promise.all(
+        allAccounts.map(async (accountOrAccountSource) => {
+          try {
+            const encryptedData =
+              "encryptedData" in accountOrAccountSource
+                ? accountOrAccountSource.encryptedData
+                : accountOrAccountSource.encrypted;
 
-      const mnemonic = mnemonicSeedHexToPhrase(decryptedData.entropyHex);
+            const decryptedData = (await browserPassworder.decrypt(
+              password,
+              encryptedData
+            )) as {
+              mnemonicSeedHex: string;
+              entropyHex: string;
+              keyPair?: string;
+            };
 
-      setJsonData({ phrase: mnemonic });
+            return {
+              id: accountOrAccountSource.id,
+              keyPair: decryptedData.keyPair || "No keypair found",
+              phrase:
+                accountOrAccountSource.type === "mnemonic"
+                  ? mnemonicSeedHexToPhrase(decryptedData.entropyHex)
+                  : "Not found",
+              type: accountOrAccountSource.type,
+            };
+          } catch (err) {
+            console.error(
+              `Failed to decrypt account ${accountOrAccountSource.id}:`,
+              err
+            );
+
+            setError(err instanceof Error ? err.message : "Failed to decrypt");
+            return {
+              id: accountOrAccountSource.id,
+              phrase: "Failed to decrypt",
+              type: accountOrAccountSource.type,
+            };
+          }
+        })
+      );
+
+      setJsonData(decryptedAccounts);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to decrypt data");
     } finally {
@@ -63,12 +120,16 @@ export default function Home() {
   };
 
   return (
-    <div className="container mx-auto max-w-2xl py-10">
+    <form
+      onSubmit={handleDecrypt}
+      className="container mx-auto max-w-2xl py-10"
+    >
       <Card>
         <CardHeader>
           <CardTitle>Sui Wallet Data Decryptor</CardTitle>
           <CardDescription>
-            Upload your JSON dump and enter your password to decrypt your data
+            Upload your JSON dump and enter your password to decrypt your data.
+            {/* <span className="text-red-500 font-semibold">Note: No data </span> */}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -88,10 +149,11 @@ export default function Home() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
+              placeholder="Enter the password used to unlock your wallet"
             />
           </div>
           <Button
+            type="submit"
             onClick={handleDecrypt}
             disabled={!file || !password || isDecrypting}
             className="w-full"
@@ -105,11 +167,11 @@ export default function Home() {
             </Alert>
           )}
 
-          {jsonData && (
-            <Tabs defaultValue="raw" className="w-full">
+          {jsonData.length > 0 && (
+            <Tabs defaultValue="formatted" className="w-full">
               <TabsList>
-                <TabsTrigger value="raw">Raw Data</TabsTrigger>
                 <TabsTrigger value="formatted">Formatted</TabsTrigger>
+                <TabsTrigger value="raw">Raw Data</TabsTrigger>
               </TabsList>
               <TabsContent value="raw">
                 <pre className="mt-4 rounded-lg bg-muted p-4 overflow-auto text-sm">
@@ -118,25 +180,57 @@ export default function Home() {
               </TabsContent>
               <TabsContent value="formatted">
                 <div className="mt-4 space-y-4">
-                  <div className="rounded-lg bg-muted p-4">
-                    <h3 className="font-medium mb-2">Decrypted Data</h3>
-                    <div className="space-y-2">
-                      {Object.entries(jsonData).map(([key, value]) => (
-                        <div key={key} className="flex gap-2">
-                          <span className="font-mono text-sm">{key}:</span>
-                          <span className="font-mono text-sm">
-                            {JSON.stringify(value)}
-                          </span>
-                        </div>
+                  <Accordion type="single" collapsible className="w-full">
+                    {jsonData
+                      .filter((account) =>
+                        ["imported", "mnemonic"].includes(account.type)
+                      )
+                      .map((account, index) => (
+                        <AccordionItem key={account.id} value={`item-${index}`}>
+                          <AccordionTrigger>
+                            Account {index + 1} ({account.type})
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="rounded-lg bg-muted p-4">
+                              <div className="space-y-2">
+                                <div className="grid gap-1">
+                                  <Label className="text-xs">Account ID</Label>
+                                  <code className="rounded bg-muted-foreground/20 px-2 py-1 text-sm">
+                                    {account.id}
+                                  </code>
+                                </div>
+                                <div className="grid gap-1">
+                                  <Label className="text-xs">Private Key</Label>
+                                  <code className="rounded bg-muted-foreground/20 px-2 py-1 text-sm break-all">
+                                    {account.keyPair}
+                                  </code>
+                                </div>
+                                <div className="grid gap-1">
+                                  <Label className="text-xs">
+                                    Recovery Phrase
+                                  </Label>
+                                  <code className="rounded bg-muted-foreground/20 px-2 py-1 text-sm break-all">
+                                    {account.phrase}
+                                  </code>
+                                </div>
+                                <div className="grid gap-1">
+                                  <Label className="text-xs">Type</Label>
+                                  <code className="rounded bg-muted-foreground/20 px-2 py-1 text-sm">
+                                    {account.type}
+                                  </code>
+                                </div>
+                              </div>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
                       ))}
-                    </div>
-                  </div>
+                  </Accordion>
                 </div>
               </TabsContent>
             </Tabs>
           )}
         </CardContent>
       </Card>
-    </div>
+    </form>
   );
 }
