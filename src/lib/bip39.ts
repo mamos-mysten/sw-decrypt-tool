@@ -59,6 +59,63 @@ export function normalizeMnemonics(mnemonics: string): string {
 }
 
 export function mnemonicSeedHexToPhrase(mnemonicSeedHex: string): string {
-  const entropyBytes = hexToBytes(mnemonicSeedHex);
-  return entropyToMnemonic(entropyBytes);
+  if (!mnemonicSeedHex || mnemonicSeedHex.length === 0) {
+    console.warn("Empty or invalid mnemonicSeedHex provided");
+    return "Invalid or empty seed";
+  }
+
+  try {
+    // Clean up the hex string - remove 0x prefix and whitespace
+    const cleanHex = mnemonicSeedHex.replace(/^0x/, "").trim();
+
+    // Make sure we have even length for hex string (add leading zero if needed)
+    const paddedHex = cleanHex.length % 2 === 0 ? cleanHex : "0" + cleanHex;
+
+    console.log("Processing hex:", {
+      original: mnemonicSeedHex,
+      cleaned: cleanHex,
+      padded: paddedHex,
+      length: paddedHex.length,
+    });
+
+    const entropyBytes = hexToBytes(paddedHex);
+
+    // Check if we have a valid length for BIP39
+    if (
+      entropyBytes.length !== 16 &&
+      entropyBytes.length !== 20 &&
+      entropyBytes.length !== 24 &&
+      entropyBytes.length !== 28 &&
+      entropyBytes.length !== 32
+    ) {
+      console.warn(`Invalid entropy length: ${entropyBytes.length} bytes`);
+
+      // If we have a non-standard length but greater than minimum, truncate to nearest valid length
+      if (entropyBytes.length > 16) {
+        let validLength = 16;
+        if (entropyBytes.length > 32) {
+          validLength = 32;
+        } else if (entropyBytes.length > 28) {
+          validLength = 28;
+        } else if (entropyBytes.length > 24) {
+          validLength = 24;
+        } else if (entropyBytes.length > 20) {
+          validLength = 20;
+        } else if (entropyBytes.length > 16) {
+          validLength = 16;
+        }
+
+        console.log(`Truncating to ${validLength} bytes`);
+        const truncatedBytes = entropyBytes.slice(0, validLength);
+        return entropyToMnemonic(truncatedBytes);
+      }
+
+      return "Invalid entropy length";
+    }
+
+    return entropyToMnemonic(entropyBytes);
+  } catch (error) {
+    console.error("Error converting hex to mnemonic:", error);
+    return "Error decrypting seed phrase";
+  }
 }
