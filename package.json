@@ -9,8 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@metamask/browser-passworder": "^6.0.0",
-    "@mysten/sui": "^1.21.2",
+    "@metamask/browser-passworder": "4.1.0",
+    "@mysten/sui": "~2.23.1",
     "@noble/hashes": "^1.7.1",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-label": "^2.1.2",
