@@ -306,7 +306,7 @@ export default function Home() {
         setToastMessage({
           title: "Dump script copied",
           description:
-            "In the Slush extension popup: right-click → Inspect → Console, paste, and press Enter. Then upload the downloaded slush-idb-dump.json.",
+            "Best: open chrome-extension://<EXT_ID>/index.html (ID from chrome://extensions) → right-click → Inspect → Console → paste. Do not use the service-worker inspector. Then upload slush-idb-dump.json.",
         });
         setTimeout(() => setToastMessage(null), 10_000);
       },
@@ -400,10 +400,14 @@ export default function Home() {
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              Run the dump script in the Slush extension&apos;s DevTools
-              (right-click the extension popup → Inspect → Console), not a
-              normal web page. It downloads{" "}
-              <code>slush-idb-dump.json</code>.
+              Run in an extension <em>page</em> DevTools — preferably{" "}
+              <code>chrome-extension://&lt;EXT_ID&gt;/index.html</code> (find
+              the ID on <code>chrome://extensions</code>). Do not use the
+              service-worker inspector from that page (its Application/IDB UI
+              is blank even when data exists), and do not run on{" "}
+              <code>my.slush.app</code>. Downloads{" "}
+              <code>slush-idb-dump.json</code>; the console also prints a
+              summary of secret keys found.
             </p>
             <Input
               id="file"

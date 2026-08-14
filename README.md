@@ -14,13 +14,20 @@ Ledger and read-only accounts are not in the encrypted secret store.
 
 ## Produce a dump
 
-1. Open the **Slush extension popup** (not `https://my.slush.app` or any other tab).
-2. Right-click the popup → **Inspect** → **Console**.
-3. In this tool, click **Copy DB dump script**, paste it into that console, and press Enter.
-4. The script downloads `slush-idb-dump.json` and also `console.log`s the object.
-5. Upload that file here.
+IndexedDB lives on the extension origin. Chrome’s **service-worker** DevTools
+hides the Application → IndexedDB UI even when data is present — dump from an
+extension **page** instead.
 
-The dump includes `keyval-store` (encrypted secrets + `base_password`) and SignalDB databases (account addresses / indexes).
+1. Open `chrome://extensions`, enable Developer mode, copy the Slush **Extension ID**.
+2. Open `chrome-extension://<EXT_ID>/index.html` in a tab (or use the popup).
+3. Right-click that page → **Inspect** → **Console** (not “Service worker” from the extensions page).
+4. In this tool, click **Copy DB dump script**, paste, press Enter.
+5. Confirm the console summary shows `origin: chrome-extension://…` and ideally `secretKeyCount > 0`.
+6. Upload the downloaded `slush-idb-dump.json`.
+
+If `origin` is `https://my.slush.app` / localhost, you ran it in the wrong place.
+If origin is correct but `dbNames` / `secretKeyCount` are empty, this profile has
+no local passphrase/private-key material (reset/sign-out, or zkLogin-only).
 
 ## Two decryption cases
 
