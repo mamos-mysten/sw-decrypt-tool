@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@metamask/browser-passworder": "4.1.0",
+    "@metamask/browser-passworder": "4.3.0",
     "@mysten/sui": "~2.23.1",
     "@noble/hashes": "^1.7.1",
     "@radix-ui/react-accordion": "^1.2.3",
