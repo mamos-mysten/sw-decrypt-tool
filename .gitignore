@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+# local recovery test harness + synthetic fixtures (may contain throwaway secrets)
+/.recovery-verify/
 
 # next.js
 /.next/
